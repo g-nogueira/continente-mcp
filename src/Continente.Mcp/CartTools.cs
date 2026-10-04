@@ -12,7 +12,8 @@ public sealed class CartTools(ContinenteClient continente)
         ReadOnly = true,
         Destructive = false,
         Idempotent = true,
-        OpenWorld = false)]
+        OpenWorld = false,
+        UseStructuredContent = true)]
     [Description("Gets the authenticated user's current Continente shopping cart, including quantities, units, and totals.")]
     public Task<CartSummary> GetCart(CancellationToken cancellationToken) =>
         continente.GetCartAsync(cancellationToken);
@@ -23,11 +24,12 @@ public sealed class CartTools(ContinenteClient continente)
         ReadOnly = false,
         Destructive = true,
         Idempotent = true,
-        OpenWorld = false)]
-    [Description("Sets how many units of a product should be in the Continente cart. For products sold by weight with an alternative unit, converts units to the primary quantity automatically.")]
+        OpenWorld = false,
+        UseStructuredContent = true)]
+    [Description("Sets the absolute number of units of a product already present in the Continente cart. For weighted products with an alternative unit, converts units to the primary quantity automatically.")]
     public Task<CartMutationResult> SetProductUnits(
-        [Description("Continente product ID, for example 7174691 for a product already present in the cart.")] string productId,
-        [Description("Desired number of units. This is an absolute target, not an increment.")] int units,
+        [Description("Continente product ID, for example 7174691.")] string productId,
+        [Description("Desired absolute number of units. Use 0 to remove the product.")] int units,
         CancellationToken cancellationToken) =>
         continente.SetUnitsAsync(productId, units, cancellationToken);
 
@@ -37,8 +39,9 @@ public sealed class CartTools(ContinenteClient continente)
         ReadOnly = false,
         Destructive = false,
         Idempotent = false,
-        OpenWorld = false)]
-    [Description("Adds a Continente product to the cart by product ID. Quantity is expressed in the product's primary sale unit. Product search will be added separately.")]
+        OpenWorld = false,
+        UseStructuredContent = true)]
+    [Description("Adds a Continente product to the cart by product ID. Quantity is expressed in the product's primary sale unit. Product search is not yet implemented.")]
     public Task<CartMutationResult> AddProduct(
         [Description("Continente product ID.")] string productId,
         [Description("Quantity in the product's primary sale unit. Defaults to 1.")] decimal quantity = 1m,
@@ -51,7 +54,8 @@ public sealed class CartTools(ContinenteClient continente)
         ReadOnly = false,
         Destructive = true,
         Idempotent = true,
-        OpenWorld = false)]
+        OpenWorld = false,
+        UseStructuredContent = true)]
     [Description("Removes a product from the Continente cart by product ID. If it is already absent, the operation succeeds without changing the cart.")]
     public Task<CartMutationResult> RemoveProduct(
         [Description("Continente product ID to remove.")] string productId,
