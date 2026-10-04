@@ -19,6 +19,21 @@ public sealed class CartTools(ContinenteClient continente)
         continente.GetCartAsync(cancellationToken);
 
     [McpServerTool(
+        Name = "search_products",
+        Title = "Search Continente products",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true)]
+    [Description("Searches Continente Online products by text and returns product IDs, names, and URLs that can be passed to add_product.")]
+    public Task<ProductSearchResult> SearchProducts(
+        [Description("Search text, for example 'leite sem lactose' or 'cotonetes'.")] string query,
+        [Description("Maximum number of products to return, from 1 to 50. Defaults to 10.")] int limit = 10,
+        CancellationToken cancellationToken = default) =>
+        continente.SearchProductsAsync(query, limit, cancellationToken);
+
+    [McpServerTool(
         Name = "set_product_units",
         Title = "Set product units",
         ReadOnly = false,
@@ -41,7 +56,7 @@ public sealed class CartTools(ContinenteClient continente)
         Idempotent = false,
         OpenWorld = false,
         UseStructuredContent = true)]
-    [Description("Adds a Continente product to the cart by product ID. Quantity is expressed in the product's primary sale unit. Product search is not yet implemented.")]
+    [Description("Adds a Continente product to the cart by product ID. Quantity is expressed in the product's primary sale unit. Use search_products to find product IDs.")]
     public Task<CartMutationResult> AddProduct(
         [Description("Continente product ID.")] string productId,
         [Description("Quantity in the product's primary sale unit. Defaults to 1.")] decimal quantity = 1m,
