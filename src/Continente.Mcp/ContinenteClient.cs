@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace Continente.Mcp;
@@ -54,6 +55,36 @@ public sealed class ContinenteClient : IDisposable
     {
         var state = await GetCartStateAsync(cancellationToken);
         return state.Summary;
+    }
+
+    public async Task<ProductSearchResult> SearchProductsAsync(
+        string query,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            throw new ArgumentException("A search query is required.", nameof(query));
+
+        if (limit is < 1 or > 50)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be between 1 and 50.");
+
+        var searchQuery = QueryString(new Dictionary<string, string?>
+        {
+            ["q"] = query.Trim(),
+            ["start"] = "0",
+            ["sz"] = limit.ToString(CultureInfo.InvariantCulture)
+        });
+
+        using var response = await SendStoreAsync(
+            HttpMethod.Get,
+            $"Search-ShowAjax?{searchQuery}",
+            content: null,
+            cancellationToken);
+
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var products = ParseProductSearchHtml(html, limit);
+
+        return new ProductSearchResult(query.Trim(), products.Count, products);
     }
 
     public async Task<CartMutationResult> SetUnitsAsync(
@@ -508,6 +539,117 @@ public sealed class ContinenteClient : IDisposable
     {
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+    }
+
+    private static IReadOnlyList<ProductSearchItem> ParseProductSearchHtml(string html, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return Array.Empty<ProductSearchItem>();
+
+        // Product pages on Continente consistently end in "-<productId>.html".
+        // Matching the URL shape is less brittle than depending on storefront CSS classes.
+        var anchorRegex = new Regex(
+            @"<a\b(?<attrs>[^>]*?)href\s*=\s*(?:""(?<dq>[^""]+)""|'(?<sq>[^']+)')(?<tail>[^>]*)>(?<body>.*?)</a>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+        var productUrlRegex = new Regex(
+            @"/produto/[^""'?#>]*-(?<id>\d+)\.html(?:[?][^""'#>]*)?",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        var byId = new Dictionary<string, ProductSearchItem>(StringComparer.Ordinal);
+
+        foreach (Match anchor in anchorRegex.Matches(html))
+        {
+            var rawHref = anchor.Groups["dq"].Success
+                ? anchor.Groups["dq"].Value
+                : anchor.Groups["sq"].Value;
+
+            var href = WebUtility.HtmlDecode(rawHref);
+            var productMatch = productUrlRegex.Match(href);
+            if (!productMatch.Success)
+                continue;
+
+            var id = productMatch.Groups["id"].Value;
+            var attrs = anchor.Groups["attrs"].Value + " " + anchor.Groups["tail"].Value;
+            var body = anchor.Groups["body"].Value;
+
+            var name = ExtractAnchorText(body)
+                       ?? ExtractHtmlAttribute(attrs, "title")
+                       ?? ExtractHtmlAttribute(body, "alt")
+                       ?? ProductNameFromUrl(href);
+
+            var absoluteUrl = Uri.TryCreate(href, UriKind.Absolute, out var absolute)
+                ? absolute.ToString()
+                : new Uri(new Uri(StoreRoot), href).ToString();
+
+            var candidate = new ProductSearchItem(id, name, absoluteUrl);
+
+            // Product tiles usually contain both an image link and a text link.
+            // Prefer the candidate with the richer display name.
+            if (!byId.TryGetValue(id, out var existing) ||
+                candidate.Name.Length > existing.Name.Length)
+            {
+                byId[id] = candidate;
+            }
+
+            if (byId.Count >= limit &&
+                byId.Values.All(x => !string.IsNullOrWhiteSpace(x.Name)))
+            {
+                // Keep parsing a little longer would only find duplicate links for the same tiles.
+                // The result order is preserved by Dictionary insertion order on modern .NET.
+                continue;
+            }
+        }
+
+        return byId.Values.Take(limit).ToArray();
+    }
+
+    private static string? ExtractAnchorText(string html)
+    {
+        var text = Regex.Replace(
+            html,
+            "<[^>]+>",
+            " ",
+            RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+        text = NormalizeHtmlText(text);
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static string? ExtractHtmlAttribute(string html, string attribute)
+    {
+        var match = Regex.Match(
+            html,
+            $@"\b{Regex.Escape(attribute)}\s*=\s*(?:""(?<dq>[^""]*)""|'(?<sq>[^']*)')",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+        if (!match.Success)
+            return null;
+
+        var value = match.Groups["dq"].Success
+            ? match.Groups["dq"].Value
+            : match.Groups["sq"].Value;
+
+        value = NormalizeHtmlText(value);
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static string NormalizeHtmlText(string value)
+    {
+        var decoded = WebUtility.HtmlDecode(value);
+        return Regex.Replace(decoded, @"\s+", " ").Trim();
+    }
+
+    private static string ProductNameFromUrl(string href)
+    {
+        var path = Uri.TryCreate(href, UriKind.Absolute, out var absolute)
+            ? absolute.AbsolutePath
+            : href.Split('?', '#')[0];
+
+        var fileName = path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "product";
+        var slug = Regex.Replace(fileName, @"-\d+\.html$", "", RegexOptions.IgnoreCase);
+        slug = Uri.UnescapeDataString(slug).Replace('-', ' ');
+        return NormalizeHtmlText(slug);
     }
 
     private static (string Verifier, string Challenge) CreatePkce()
