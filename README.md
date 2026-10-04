@@ -17,13 +17,13 @@ Current tools:
 | Tool | Purpose |
 | --- | --- |
 | `get_cart` | Read the current cart and totals |
+| `search_products` | Search Continente products and return IDs, names, and URLs |
 | `set_product_units` | Set the absolute number of units of an existing cart item |
 | `add_product` | Add a product by Continente product ID |
 | `remove_product` | Remove a product by Continente product ID |
 
 Weighted products are represented using Continente's primary quantity and alternative sale unit. For example, a kiwi may have a primary quantity of `0.48 kg` and a secondary quantity of `4 un`. `set_product_units` performs that conversion automatically.
 
-Product search is not implemented yet.
 
 ## Authentication to Continente
 
@@ -142,6 +142,7 @@ https://www.continente.pt/on/demandware.store/Sites-continente-Site/default/
 Endpoints currently used:
 
 ```
+Search-ShowAjax
 Cart-Get
 Cart-AddProduct
 Cart-UpdateQuantity
@@ -172,6 +173,5 @@ Deposits (SDR) are separate basket line items and are managed automatically by C
 ## Next work
 
 - Verify `add_product` and `remove_product` end-to-end through the MCP server.
-- Discover and implement product search so ChatGPT can find products without knowing IDs.
 - Add MCP-side OAuth before any public deployment.
 - Add integration tests that can run against a dedicated Continente test account/session.
