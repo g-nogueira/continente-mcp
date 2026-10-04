@@ -25,3 +25,13 @@ public sealed record CartMutationResult(
     decimal? FinalQuantity,
     string? CartTotal,
     string Message);
+
+public sealed record ProductSearchResult(
+    string Query,
+    int Count,
+    IReadOnlyList<ProductSearchItem> Products);
+
+public sealed record ProductSearchItem(
+    string Id,
+    string Name,
+    string Url);
