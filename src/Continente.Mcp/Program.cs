@@ -1,4 +1,5 @@
 using Continente.Mcp;
+using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,7 +11,10 @@ builder.Services.AddSingleton<ContinenteClient>();
 
 builder.Services
     .AddMcpServer()
-    .WithHttpTransport()
+    .WithHttpTransport(options =>
+    {
+        options.SessionMode = HttpServerSessionMode.Stateless;
+    })
     .WithToolsFromAssembly();
 
 var app = builder.Build();
