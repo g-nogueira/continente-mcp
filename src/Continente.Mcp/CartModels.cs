@@ -28,10 +28,27 @@ public sealed record CartMutationResult(
 
 public sealed record ProductSearchResult(
     string Query,
+    int Start,
     int Count,
+    int? TotalCount,
+    bool HasMore,
+    int NextStart,
+    IReadOnlyList<ProductSearchItem> Products);
+
+public sealed record ProductSearchPage(
+    int? TotalCount,
     IReadOnlyList<ProductSearchItem> Products);
 
 public sealed record ProductSearchItem(
     string Id,
     string Name,
-    string Url);
+    string Url,
+    string? Brand,
+    decimal? Price,
+    string Currency,
+    string? PackageDescription,
+    decimal? UnitPrice,
+    string? UnitPriceBasis,
+    string? UnitPriceSource,
+    bool? Available,
+    bool OnPromotion);
