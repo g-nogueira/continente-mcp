@@ -17,13 +17,46 @@ Current tools:
 | Tool | Purpose |
 | --- | --- |
 | `get_cart` | Read the current cart and totals |
-| `search_products` | Search Continente products and return IDs, names, and URLs |
+| `search_products` | Search catalogue pages with IDs, names, prices, packaging, unit prices and pagination |
 | `set_product_units` | Set the absolute number of units of an existing cart item |
 | `add_product` | Add a product by Continente product ID |
 | `remove_product` | Remove a product by Continente product ID |
 
 Weighted products are represented using Continente's primary quantity and alternative sale unit. For example, a kiwi may have a primary quantity of `0.48 kg` and a secondary quantity of `4 un`. `set_product_units` performs that conversion automatically.
 
+
+## Catalogue prices and comparisons
+
+The catalogue search reads server-rendered search tiles from /pesquisa/?q=...,
+the route verified against a browser-exported HAR. Later pages use the site's
+Search-UpdateGrid (with Search-ShowAjax fallback). No mobile-app interception is
+necessary.
+
+Call search_products with query, limit (1-50), and optionally start (default 0).
+Use NextStart for the next request **while HasMore is true**. Do not claim a
+catalogue-wide lowest price unless all pages were checked and TotalCount is
+known. Do not silently conflate different product varieties, such as ready-to-eat
+rice and dry basmati rice.
+
+Returned fields include:
+- Price (EUR) and PackageDescription, with Brand when provided by the tile.
+- UnitPrice / UnitPriceBasis: normalized EUR/kg, EUR/l, EUR/un, etc.
+- UnitPriceSource = site or calculated_from_package; calculations are only
+  attempted for unambiguous pack sizes. If sheet counts are ambiguous, the unit
+  price is null rather than fabricated.
+- Available: false only when an unhidden unavailable badge is observed; null
+  means unverified. The hidden "Indisponível" template in every product tile is
+  **not** a signal that stock is unavailable.
+- OnPromotion: promotional badge found in the tile (not the historical PVPR).
+
+Prices and availability depend on the live storefront, delivery location, and
+session. Do not assume values from a HAR remain current. Unit prices alone are
+not a substitute for product equivalence rules: apply Todoist preferences
+(brand, type, quality, acidity, pack format) before ranking candidates.
+
+Regression tests use small synthetic fixtures from the structure of the HAR;
+**the complete HAR must not be committed**, because recordings can include
+cookies, IDs, or personal information.
 
 ## Authentication to Continente
 
