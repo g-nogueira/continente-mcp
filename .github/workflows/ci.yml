@@ -21,3 +21,6 @@ jobs:
 
       - name: Build
         run: dotnet build src/Continente.Mcp/Continente.Mcp.csproj --configuration Release --no-restore
+
+      - name: Test catalogue parser
+        run: dotnet test tests/Continente.Mcp.Tests/Continente.Mcp.Tests.csproj --configuration Release

@@ -7,5 +7,6 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="AngleSharp" Version="1.5.2" />
   </ItemGroup>
 </Project>

@@ -26,12 +26,13 @@ public sealed class CartTools(ContinenteClient continente)
         Idempotent = true,
         OpenWorld = false,
         UseStructuredContent = true)]
-    [Description("Searches Continente Online products by text and returns product IDs, names, and URLs that can be passed to add_product.")]
+    [Description("Searches Continente Online and returns prices, packaging, comparable unit prices, availability when known, and pagination metadata. Check HasMore before claiming a product is the cheapest. UnitPriceBasis must match across compared products. Null availability is unknown, not in stock.")]
     public Task<ProductSearchResult> SearchProducts(
         [Description("Search text, for example 'leite sem lactose' or 'cotonetes'.")] string query,
-        [Description("Maximum number of products to return, from 1 to 50. Defaults to 10.")] int limit = 10,
+        [Description("Maximum products per page, 1 to 50. Defaults to 20.")] int limit = 20,
+        [Description("Zero-based result offset for fetching subsequent pages. Use NextStart while HasMore is true.")] int start = 0,
         CancellationToken cancellationToken = default) =>
-        continente.SearchProductsAsync(query, limit, cancellationToken);
+        continente.SearchProductsAsync(query, limit, start, cancellationToken);
 
     [McpServerTool(
         Name = "set_product_units",
