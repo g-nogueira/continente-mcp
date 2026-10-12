@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore src/Continente.Mcp/Continente.Mcp.csproj
+
+      - name: Build
+        run: dotnet build src/Continente.Mcp/Continente.Mcp.csproj --configuration Release --no-restore
